@@ -2,7 +2,7 @@
   "entities": {
     "User": {
       "title": "User",
-      "description": "User account and wallet balance",
+      "description": "User account, wallet balance, and bound prepaid withdrawal method",
       "type": "object",
       "properties": {
         "mobileNumber": { "type": "string", "maxLength": 20 },
@@ -10,6 +10,9 @@
         "balance": { "type": "number" },
         "referralCode": { "type": "string", "maxLength": 20 },
         "referredBy": { "type": "string", "maxLength": 50 },
+        "withdrawalMethod": { "type": "string", "enum": ["GCash", "Maya"] },
+        "accountName": { "type": "string", "maxLength": 100 },
+        "accountNumber": { "type": "string", "maxLength": 50 },
         "claimedMissions": { "type": "array" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
@@ -47,12 +50,15 @@
     },
     "Withdrawal": {
       "title": "Withdrawal",
-      "description": "Withdrawal request by user",
+      "description": "Withdrawal request by user with bound prepaid payout method",
       "type": "object",
       "properties": {
         "userId": { "type": "string", "maxLength": 128 },
         "userMobile": { "type": "string", "maxLength": 20 },
         "amount": { "type": "number" },
+        "withdrawalMethod": { "type": "string", "enum": ["GCash", "Maya"] },
+        "accountName": { "type": "string", "maxLength": 100 },
+        "accountNumber": { "type": "string", "maxLength": 50 },
         "accountDetails": { "type": "string", "maxLength": 200 },
         "status": { "type": "string", "enum": ["pending", "approved", "paid", "rejected"] },
         "createdAt": { "type": "string", "format": "date-time" }

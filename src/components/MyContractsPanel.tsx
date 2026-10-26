@@ -88,7 +88,7 @@ export const MyContractsPanel: React.FC<MyContractsPanelProps> = ({
         const res = await autoCreditInvestmentReturns(user.id);
         if (res.creditedCycles > 0 && isMounted) {
           setSyncNotice(
-            `Automated Payout: Credited ${res.creditedCycles} daily dividend cycle(s) (+$${res.totalEarnings.toFixed(
+            `Automated Payout: Credited ${res.creditedCycles} daily dividend cycle(s) (+₱${res.totalEarnings.toFixed(
               2
             )}) to your balance!`
           );
@@ -114,7 +114,7 @@ export const MyContractsPanel: React.FC<MyContractsPanelProps> = ({
       const res = await autoCreditInvestmentReturns(user.id);
       if (res.creditedCycles > 0) {
         setSyncNotice(
-          `Credited ${res.creditedCycles} cycle(s) (+$${res.totalEarnings.toFixed(2)}) directly to your wallet!`
+          `Credited ${res.creditedCycles} cycle(s) (+₱${res.totalEarnings.toFixed(2)}) directly to your wallet!`
         );
         onRefreshUser();
       } else {
@@ -254,14 +254,14 @@ export const MyContractsPanel: React.FC<MyContractsPanelProps> = ({
                     </span>
                     <h3 className="text-xl font-black text-white mt-1">{contract.planName}</h3>
                     <p className="text-xs text-slate-400">
-                      Cost: <span className="font-bold text-white">${contract.cost}</span> | Daily Return:{' '}
-                      <span className="font-bold text-emerald-400">+${contract.dailyReturn}/day</span>
+                      Cost: <span className="font-bold text-white">₱{contract.cost}</span> | Daily Return:{' '}
+                      <span className="font-bold text-emerald-400">+₱{contract.dailyReturn}/day</span>
                     </p>
                   </div>
 
                   <div className="text-right">
                     <div className="text-[10px] uppercase font-semibold text-slate-400">Total Earned</div>
-                    <div className="text-lg font-black text-emerald-400">+${totalEarnedSoFar.toFixed(2)}</div>
+                    <div className="text-lg font-black text-emerald-400">+₱{totalEarnedSoFar.toFixed(2)}</div>
                   </div>
                 </div>
 
@@ -297,7 +297,7 @@ export const MyContractsPanel: React.FC<MyContractsPanelProps> = ({
                   </div>
 
                   <span className="text-[11px] text-slate-400 bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
-                    +${contract.dailyReturn} on cycle
+                    +₱{contract.dailyReturn} on cycle
                   </span>
                 </div>
               </div>
@@ -318,7 +318,7 @@ export const MyContractsPanel: React.FC<MyContractsPanelProps> = ({
                   <span className="text-emerald-400">100% Completed</span>
                 </div>
                 <div className="text-slate-500">
-                  Total collected: ${(c.daysCollectedCount * c.dailyReturn).toFixed(2)}
+                  Total collected: ₱{(c.daysCollectedCount * c.dailyReturn).toFixed(2)}
                 </div>
               </div>
             ))}

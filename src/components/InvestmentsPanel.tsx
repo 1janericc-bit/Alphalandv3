@@ -49,7 +49,7 @@ export const InvestmentsPanel: React.FC<InvestmentsPanelProps> = ({
 
     if (user.balance < selectedPlan.cost) {
       setError(
-        `Insufficient balance ($${user.balance.toFixed(2)}). You need $${(
+        `Insufficient balance (₱${user.balance.toFixed(2)}). You need ₱${(
           selectedPlan.cost - user.balance
         ).toFixed(2)} more.`
       );
@@ -60,7 +60,7 @@ export const InvestmentsPanel: React.FC<InvestmentsPanelProps> = ({
     try {
       await purchaseInvestmentPlan(user.id, selectedPlan);
       setSuccessMsg(
-        `Successfully purchased ${selectedPlan.name}! Your daily return of $${selectedPlan.dailyReturn} will automatically credit every 24 hours.`
+        `Successfully purchased ${selectedPlan.name}! Your daily return of ₱${selectedPlan.dailyReturn} will automatically credit every 24 hours.`
       );
       setTimeout(() => {
         setSelectedPlan(null);
@@ -120,7 +120,7 @@ export const InvestmentsPanel: React.FC<InvestmentsPanelProps> = ({
           {user && (
             <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-xs text-slate-300">
               <span>Your Balance:</span>
-              <span className="font-bold text-amber-400 text-sm">${user.balance.toFixed(2)}</span>
+              <span className="font-bold text-amber-400 text-sm">₱{user.balance.toFixed(2)}</span>
             </div>
           )}
         </div>
@@ -161,11 +161,11 @@ export const InvestmentsPanel: React.FC<InvestmentsPanelProps> = ({
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-slate-800/70 p-3 rounded-xl border border-slate-700/50">
                       <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Contract Cost</div>
-                      <div className="text-xl font-extrabold text-white">${plan.cost}</div>
+                      <div className="text-xl font-extrabold text-white">₱{plan.cost}</div>
                     </div>
                     <div className="bg-emerald-950/40 p-3 rounded-xl border border-emerald-500/30">
                       <div className="text-[10px] uppercase font-bold text-emerald-400 mb-0.5">Daily Return</div>
-                      <div className="text-xl font-extrabold text-emerald-400">+${plan.dailyReturn}/day</div>
+                      <div className="text-xl font-extrabold text-emerald-400">+₱{plan.dailyReturn}/day</div>
                     </div>
                   </div>
 
@@ -176,11 +176,11 @@ export const InvestmentsPanel: React.FC<InvestmentsPanelProps> = ({
                     </div>
                     <div className="flex justify-between py-1">
                       <span className="text-slate-400">Total Return:</span>
-                      <span className="font-extrabold text-amber-300 text-sm">${plan.totalReturn}</span>
+                      <span className="font-extrabold text-amber-300 text-sm">₱{plan.totalReturn}</span>
                     </div>
                     <div className="flex justify-between py-1">
                       <span className="text-slate-400">Net Profit:</span>
-                      <span className="font-bold text-emerald-400">+${profit}</span>
+                      <span className="font-bold text-emerald-400">+₱{profit}</span>
                     </div>
                   </div>
 
@@ -188,7 +188,7 @@ export const InvestmentsPanel: React.FC<InvestmentsPanelProps> = ({
                     onClick={() => handleSelectPlan(plan)}
                     className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                   >
-                    <span>Invest Now (${plan.cost})</span>
+                    <span>Invest Now (₱{plan.cost})</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -238,25 +238,25 @@ export const InvestmentsPanel: React.FC<InvestmentsPanelProps> = ({
             <div className="bg-slate-800/80 rounded-xl p-4 space-y-2.5 text-xs mb-6 border border-slate-700">
               <div className="flex justify-between">
                 <span className="text-slate-400">Contract Cost:</span>
-                <span className="font-bold text-white">${selectedPlan.cost}.00</span>
+                <span className="font-bold text-white">₱{selectedPlan.cost}.00</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Current Wallet Balance:</span>
-                <span className="font-bold text-white">${user?.balance.toFixed(2)}</span>
+                <span className="font-bold text-white">₱{user?.balance.toFixed(2)}</span>
               </div>
               <div className="flex justify-between border-t border-slate-700 pt-2">
                 <span className="text-slate-400">Balance After Purchase:</span>
                 <span className="font-bold text-amber-400">
-                  ${Math.max(0, (user?.balance || 0) - selectedPlan.cost).toFixed(2)}
+                  ₱{Math.max(0, (user?.balance || 0) - selectedPlan.cost).toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between border-t border-slate-700 pt-2">
                 <span className="text-slate-400">Daily Return:</span>
-                <span className="font-bold text-emerald-400">+${selectedPlan.dailyReturn}/day</span>
+                <span className="font-bold text-emerald-400">+₱{selectedPlan.dailyReturn}/day</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Total 14-Day Payout:</span>
-                <span className="font-bold text-emerald-400">${selectedPlan.totalReturn}.00</span>
+                <span className="font-bold text-emerald-400">₱{selectedPlan.totalReturn}.00</span>
               </div>
             </div>
 

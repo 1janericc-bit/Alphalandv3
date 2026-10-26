@@ -7,6 +7,9 @@ export interface User {
   balance: number;
   referralCode: string;
   referredBy: string | null;
+  withdrawalMethod?: 'GCash' | 'Maya' | null;
+  accountName?: string | null;
+  accountNumber?: string | null;
   claimedMissions?: string[];
   createdAt: any;
 }
@@ -50,6 +53,9 @@ export interface Withdrawal {
   userId: string;
   userMobile?: string;
   amount: number;
+  withdrawalMethod?: 'GCash' | 'Maya' | string | null;
+  accountName?: string | null;
+  accountNumber?: string | null;
   accountDetails?: string;
   status: 'pending' | 'approved' | 'paid' | 'rejected';
   createdAt: any;

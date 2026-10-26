@@ -182,6 +182,9 @@ export default function App() {
             settings={settings}
             onOpenAuth={() => setIsAuthOpen(true)}
             onGoToInvest={() => setActiveTab('invest')}
+            onRefreshUser={() => {
+              if (user) getUserById(user.id).then((u) => u && setUser(u));
+            }}
           />
         )}
 

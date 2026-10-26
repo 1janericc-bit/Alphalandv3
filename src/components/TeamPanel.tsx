@@ -148,7 +148,7 @@ export const TeamPanel: React.FC<TeamPanelProps> = ({
             <div className="bg-emerald-950/40 p-4 rounded-2xl border border-emerald-500/30 text-center min-w-[140px]">
               <div className="text-[10px] uppercase font-bold text-emerald-400 mb-0.5">Total Commission</div>
               <div className="text-2xl font-black text-emerald-400">
-                ${totalCommissionEarned.toFixed(2)}
+                ₱{totalCommissionEarned.toFixed(2)}
               </div>
               <div className="text-[10px] text-emerald-300 font-semibold">Lifetime Earned</div>
             </div>
@@ -223,7 +223,7 @@ export const TeamPanel: React.FC<TeamPanelProps> = ({
             <div className="text-xs uppercase font-bold text-slate-400 mb-1">Level 1 (Direct)</div>
             <div className="text-3xl font-black text-amber-400 mb-1">30%</div>
             <p className="text-xs text-slate-300">
-              Earn 30% of their first purchased plan. (e.g. $720 commission on Island 2400!)
+              Earn 30% of their first purchased plan. (e.g. ₱720 commission on Island 2400!)
             </p>
           </div>
 
@@ -341,7 +341,7 @@ export const TeamPanel: React.FC<TeamPanelProps> = ({
           <h4 className="font-bold text-white text-base mb-4 flex items-center justify-between">
             <span>MLM Commission Ledger ({commissions.length})</span>
             <span className="text-xs text-emerald-400 font-semibold">
-              +${totalCommissionEarned.toFixed(2)} Total
+              +₱{totalCommissionEarned.toFixed(2)} Total
             </span>
           </h4>
 
@@ -357,7 +357,7 @@ export const TeamPanel: React.FC<TeamPanelProps> = ({
                   className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl flex items-center justify-between text-xs"
                 >
                   <div>
-                    <div className="font-bold text-emerald-400 text-sm">+${c.amount.toFixed(2)}</div>
+                    <div className="font-bold text-emerald-400 text-sm">+₱{c.amount.toFixed(2)}</div>
                     <div className="text-[10px] text-slate-400">
                       {c.planName} • Level {c.level} ({c.percentage}%)
                     </div>

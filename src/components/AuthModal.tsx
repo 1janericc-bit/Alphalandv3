@@ -142,8 +142,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <Gift className="w-4 h-4 shrink-0 text-amber-400" />
             <span>
               {hasUrlRef
-                ? 'Referral code detected! You will receive a $30 signup bonus upon registration.'
-                : 'Enter a valid referral code to claim a $30 instant welcome bonus!'}
+                ? 'Referral code detected! You will receive a ₱30 signup bonus upon registration.'
+                : 'Enter a valid referral code to claim a ₱30 instant welcome bonus!'}
             </span>
           </div>
         )}
@@ -194,7 +194,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
                   Referral Code (Optional)
                 </label>
-                <span className="text-[11px] text-amber-400 font-medium">+$30 Bonus</span>
+                <span className="text-[11px] text-amber-400 font-medium">+₱30 Bonus</span>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">

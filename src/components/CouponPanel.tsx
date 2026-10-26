@@ -65,7 +65,7 @@ export const CouponPanel: React.FC<CouponPanelProps> = ({
 
     try {
       const creditedAmount = await redeemCoupon(code, user.id);
-      setSuccess(`Success! Coupon "${code}" redeemed! +$${creditedAmount.toFixed(2)} credited to your wallet balance.`);
+      setSuccess(`Success! Coupon "${code}" redeemed! +₱${creditedAmount.toFixed(2)} credited to your wallet balance.`);
       setCouponCode('');
       onRefreshUser();
     } catch (err) {

@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { User, AppSettings, Deposit, Withdrawal, UserInvestment } from '../types';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { submitDeposit, requestWithdrawal } from '../services/dbService';
+import {
+  submitDeposit,
+  requestWithdrawal,
+  updateUserWithdrawalAccount,
+} from '../services/dbService';
 import { uploadImageToStorage } from '../services/storageService';
 import {
   Wallet,
@@ -12,12 +16,15 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
-  ExternalLink,
   ShieldAlert,
-  FileText,
   Building,
   Image as ImageIcon,
   X,
+  Smartphone,
+  CreditCard,
+  Edit3,
+  ShieldCheck,
+  Check,
 } from 'lucide-react';
 
 interface WalletPanelProps {
@@ -25,6 +32,7 @@ interface WalletPanelProps {
   settings: AppSettings | null;
   onOpenAuth: () => void;
   onGoToInvest: () => void;
+  onRefreshUser?: () => void;
 }
 
 export const WalletPanel: React.FC<WalletPanelProps> = ({
@@ -32,6 +40,7 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
   settings,
   onOpenAuth,
   onGoToInvest,
+  onRefreshUser,
 }) => {
   const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw'>('deposit');
 
@@ -44,9 +53,17 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
   const [depositError, setDepositError] = useState<string | null>(null);
   const [depositSuccess, setDepositSuccess] = useState<string | null>(null);
 
-  // Withdrawal Form State
+  // Prepaid Withdrawal Binding Form State
+  const [bindingMethod, setBindingMethod] = useState<'GCash' | 'Maya'>('GCash');
+  const [bindingAccountName, setBindingAccountName] = useState('');
+  const [bindingAccountNumber, setBindingAccountNumber] = useState('');
+  const [isEditingBinding, setIsEditingBinding] = useState(false);
+  const [bindingLoading, setBindingLoading] = useState(false);
+  const [bindingSuccess, setBindingSuccess] = useState<string | null>(null);
+  const [bindingError, setBindingError] = useState<string | null>(null);
+
+  // Withdrawal Request Form State
   const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [accountDetails, setAccountDetails] = useState('');
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const [withdrawSuccess, setWithdrawSuccess] = useState<string | null>(null);
@@ -58,6 +75,26 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
 
   // Screenshot Preview Modal State
   const [viewingProofUrl, setViewingProofUrl] = useState<string | null>(null);
+
+  // Sync user prepaid account details
+  useEffect(() => {
+    if (user?.withdrawalMethod === 'GCash' || user?.withdrawalMethod === 'Maya') {
+      setBindingMethod(user.withdrawalMethod);
+    }
+    if (user?.accountName) {
+      setBindingAccountName(user.accountName);
+    }
+    if (user?.accountNumber) {
+      setBindingAccountNumber(user.accountNumber);
+    }
+
+    const isFullyBound =
+      Boolean(user?.withdrawalMethod) &&
+      Boolean(user?.accountName) &&
+      Boolean(user?.accountNumber);
+
+    setIsEditingBinding(!isFullyBound);
+  }, [user?.withdrawalMethod, user?.accountName, user?.accountNumber]);
 
   // Listen to deposits, withdrawals, and user active investments in real-time
   useEffect(() => {
@@ -140,29 +177,61 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
 
     try {
       console.log(`[Wallet] Uploading deposit proof: ${proofFile.name} (${proofFile.size} bytes)`);
-      // Step 1: Upload to Firebase Storage 'deposit-proofs/' with robust try/catch & progress
       const uploadedUrl = await uploadImageToStorage(proofFile, 'deposit-proofs', {
         onProgress: (p) => setUploadProgress(p),
       });
 
-      // Step 2: Submit to Firestore deposits collection
       await submitDeposit(user.id, user.mobileNumber, amountNum, uploadedUrl);
 
       setDepositSuccess(
-        `Deposit request for $${amountNum.toFixed(2)} submitted successfully! It is queued for administrator verification.`
+        `Deposit request for ₱${amountNum.toFixed(2)} submitted successfully! It is queued for administrator verification.`
       );
       setDepositAmount('');
       setProofFile(null);
       setPreviewUrl(null);
     } catch (err) {
-      console.error("Upload error:", err);
+      console.error('Upload error:', err);
       const msg = err instanceof Error ? err.message : 'Failed to submit deposit. Please try again.';
       setDepositError(`Upload error: ${msg}`);
       alert(`Deposit Submission Error: ${msg}`);
     } finally {
-      // Guaranteed to execute so the UI never gets stuck in an infinite spinner
       setDepositLoading(false);
       setUploadProgress(0);
+    }
+  };
+
+  const handleSavePrepaidAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      onOpenAuth();
+      return;
+    }
+    setBindingError(null);
+    setBindingSuccess(null);
+
+    const cleanName = bindingAccountName.trim();
+    const cleanNumber = bindingAccountNumber.trim();
+
+    if (!cleanName || cleanName.length < 2) {
+      setBindingError('Please enter a valid account holder name (minimum 2 characters).');
+      return;
+    }
+    if (!cleanNumber || cleanNumber.length < 8) {
+      setBindingError('Please enter a valid mobile / account number (e.g. 09171234567).');
+      return;
+    }
+
+    setBindingLoading(true);
+    try {
+      await updateUserWithdrawalAccount(user.id, bindingMethod, cleanName, cleanNumber);
+      setBindingSuccess(`Successfully bound your ${bindingMethod} account for payouts!`);
+      setIsEditingBinding(false);
+      onRefreshUser?.();
+      setTimeout(() => setBindingSuccess(null), 5000);
+    } catch (err) {
+      setBindingError(err instanceof Error ? err.message : 'Failed to save payout method.');
+    } finally {
+      setBindingLoading(false);
     }
   };
 
@@ -175,30 +244,34 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
     setWithdrawError(null);
     setWithdrawSuccess(null);
 
+    // Validation 1: Bound Prepaid Account check
+    if (!user.withdrawalMethod || !user.accountName || !user.accountNumber) {
+      setWithdrawError(
+        'Please bind your GCash or Maya payout account below before submitting a withdrawal request.'
+      );
+      setIsEditingBinding(true);
+      return;
+    }
+
     const amountNum = parseFloat(withdrawAmount);
     if (isNaN(amountNum) || amountNum < 100) {
-      setWithdrawError('Minimum withdrawal amount is $100.');
+      setWithdrawError('Minimum withdrawal amount is ₱100.');
       return;
     }
     if (amountNum > user.balance) {
       setWithdrawError(
-        `Insufficient balance. You currently have $${user.balance.toFixed(2)} available.`
+        `Insufficient balance. You currently have ₱${user.balance.toFixed(2)} available.`
       );
-      return;
-    }
-    if (!accountDetails.trim()) {
-      setWithdrawError('Please provide your payout account details (e.g. USDT TRC20 Address or Bank details).');
       return;
     }
 
     setWithdrawLoading(true);
     try {
-      await requestWithdrawal(user.id, user.mobileNumber, amountNum, accountDetails.trim());
+      await requestWithdrawal(user.id, user.mobileNumber, amountNum);
       setWithdrawSuccess(
-        `Withdrawal of $${amountNum.toFixed(2)} requested successfully. Status: Pending Admin Processing.`
+        `Withdrawal of ₱${amountNum.toFixed(2)} to ${user.withdrawalMethod} (${user.accountNumber}) requested successfully! Status: Pending Admin Processing.`
       );
       setWithdrawAmount('');
-      setAccountDetails('');
     } catch (err) {
       setWithdrawError(err instanceof Error ? err.message : 'Withdrawal failed.');
     } finally {
@@ -224,10 +297,14 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
     );
   }
 
-  // Official dynamic deposit QR code strictly from settings/appConfig
   const depositQrUrl =
     settings?.activeDepositQrUrl ||
     'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=usdt-trc20-deposit-alphaland-official';
+
+  const isPrepaidBound =
+    Boolean(user.withdrawalMethod) &&
+    Boolean(user.accountName) &&
+    Boolean(user.accountNumber);
 
   return (
     <div className="space-y-8 animate-fade-in max-w-5xl mx-auto">
@@ -238,7 +315,7 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
             Total Available Funds
           </span>
           <div className="text-3xl sm:text-5xl font-black text-white mt-1">
-            ${user.balance.toFixed(2)}
+            ₱{user.balance.toFixed(2)}
           </div>
           <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1.5 font-medium">
             <CheckCircle2 className="w-3.5 h-3.5" />
@@ -283,7 +360,7 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
             </span>
             <h3 className="text-lg font-bold text-white mb-2">Scan & Pay Deposit QR</h3>
             <p className="text-xs text-slate-400 mb-4 max-w-xs">
-              Scan this official QR code with your payment app (USDT / Bank) to transfer the amount, then upload your transaction screenshot.
+              Scan this official QR code with your payment app to transfer the amount, then upload your transaction screenshot.
             </p>
 
             <div className="bg-white p-3.5 rounded-2xl shadow-xl border border-slate-700/50 mb-4">
@@ -329,7 +406,7 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
             <form onSubmit={handleDepositSubmit} className="space-y-5">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
-                  Deposit Amount ($)
+                  Deposit Amount (₱)
                 </label>
                 <input
                   type="number"
@@ -417,106 +494,296 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
         </div>
       ) : (
         /* Withdrawal Tab */
-        <div className="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl shadow-xl max-w-2xl mx-auto">
-          <div className="flex items-center gap-2.5 mb-2">
-            <ArrowUpCircle className="w-6 h-6 text-emerald-400" />
-            <h3 className="text-2xl font-black text-white">Withdrawal Request</h3>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-400 mb-6">
-            Cash out your real estate dividends directly to your destination account.
-          </p>
-
-          {/* Mandatory Active Investment Check Notification */}
-          {hasActiveInvestment === false && (
-            <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs sm:text-sm flex items-start gap-3">
-              <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <div className="font-bold">Withdrawal Condition Unmet:</div>
-                <div className="mt-0.5 text-xs text-slate-300">
-                  You must have at least 1 active real estate investment contract to initiate a withdrawal.
+        <div className="space-y-6 max-w-2xl mx-auto">
+          {/* SECTION 1: SECURE PREPAID WITHDRAWAL METHOD BINDING (GCASH & MAYA) */}
+          <div className="bg-slate-900 border border-slate-800 p-6 sm:p-7 rounded-3xl shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-emerald-500 flex items-center justify-center text-white shadow-md">
+                  <Smartphone className="w-5 h-5" />
                 </div>
-                <button
-                  onClick={onGoToInvest}
-                  className="mt-2.5 px-3 py-1.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-lg inline-flex items-center gap-1.5"
-                >
-                  <Building className="w-3.5 h-3.5" />
-                  <span>Choose an Investment Package</span>
-                </button>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Prepaid Payout Account Binding</h3>
+                  <p className="text-xs text-slate-400">Strictly supports GCash and Maya e-wallets</p>
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* Mandatory Disclaimer Notice */}
-          <div className="mb-6 p-4 rounded-2xl bg-blue-950/40 border border-blue-500/30 text-blue-200 text-xs sm:text-sm flex items-center gap-3">
-            <Clock className="w-5 h-5 text-blue-400 shrink-0" />
-            <div className="font-medium italic">
-              "Withdrawals are processed manually and take approximately 2 hours to receive."
+              {isPrepaidBound && !isEditingBinding && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingBinding(true)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-all"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Update Account</span>
+                </button>
+              )}
             </div>
+
+            {bindingSuccess && (
+              <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2.5 text-emerald-300 text-xs">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{bindingSuccess}</span>
+              </div>
+            )}
+
+            {bindingError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2 text-rose-300 text-xs">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{bindingError}</span>
+              </div>
+            )}
+
+            {/* Display Bound Account Card if configured and not editing */}
+            {isPrepaidBound && !isEditingBinding ? (
+              <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-4 sm:p-5 rounded-2xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm tracking-wider shadow-md shrink-0 ${
+                      user.withdrawalMethod === 'GCash'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-emerald-600 text-white'
+                    }`}
+                  >
+                    {user.withdrawalMethod === 'GCash' ? 'GCash' : 'Maya'}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-white text-base tracking-wide">
+                        {user.accountName}
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                        <ShieldCheck className="w-3 h-3" />
+                        <span>Bound & Active</span>
+                      </span>
+                    </div>
+                    <div className="text-xs font-mono text-slate-300 mt-0.5 font-bold tracking-wider">
+                      {user.accountNumber}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1">
+                      Provider: <strong className="text-slate-400">{user.withdrawalMethod}</strong> Mobile Wallet
+                    </div>
+                  </div>
+                </div>
+
+                <div className="sm:text-right text-xs text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                  <div className="text-[10px] uppercase font-bold text-emerald-400">Ready for Payouts</div>
+                  <div className="text-[11px] text-slate-300">Fast 2-hour processing window</div>
+                </div>
+              </div>
+            ) : (
+              /* Binding Configuration Form (GCash & Maya Strictly) */
+              <form onSubmit={handleSavePrepaidAccount} className="space-y-4 pt-2">
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-start gap-2">
+                  <Smartphone className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+                  <span>
+                    <strong>Strict Payout Rails:</strong> Only <strong>GCash</strong> and <strong>Maya</strong> are accepted for wallet withdrawals. Ensure account name matches your registered ID.
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Provider Dropdown (Strict restriction: GCash or Maya) */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                      1. Provider
+                    </label>
+                    <select
+                      value={bindingMethod}
+                      onChange={(e) => setBindingMethod(e.target.value as 'GCash' | 'Maya')}
+                      className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    >
+                      <option value="GCash">GCash (E-Wallet)</option>
+                      <option value="Maya">Maya (PayMaya)</option>
+                    </select>
+                  </div>
+
+                  {/* Account Name */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                      2. Account Holder Name
+                    </label>
+                    <input
+                      type="text"
+                      value={bindingAccountName}
+                      onChange={(e) => setBindingAccountName(e.target.value)}
+                      placeholder="e.g. Juan Dela Cruz"
+                      className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      required
+                    />
+                  </div>
+
+                  {/* Mobile / Account Number */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                      3. Mobile / Account Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={bindingAccountNumber}
+                      onChange={(e) => setBindingAccountNumber(e.target.value)}
+                      placeholder="e.g. 09171234567"
+                      className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-white text-sm font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="submit"
+                    disabled={bindingLoading}
+                    className="flex-1 py-2.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {bindingLoading ? (
+                      <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Save & Bind {bindingMethod} Account</span>
+                      </>
+                    )}
+                  </button>
+
+                  {isPrepaidBound && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingBinding(false)}
+                      className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </form>
+            )}
           </div>
 
-          {withdrawError && (
-            <div className="mb-5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2.5 text-rose-300 text-xs">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{withdrawError}</span>
+          {/* SECTION 2: WITHDRAWAL REQUEST FORM */}
+          <div className="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl shadow-xl">
+            <div className="flex items-center gap-2.5 mb-2">
+              <ArrowUpCircle className="w-6 h-6 text-emerald-400" />
+              <h3 className="text-2xl font-black text-white">Withdrawal Request</h3>
             </div>
-          )}
+            <p className="text-xs sm:text-sm text-slate-400 mb-6">
+              Cash out your dividends directly to your verified GCash or Maya prepaid wallet.
+            </p>
 
-          {withdrawSuccess && (
-            <div className="mb-5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2.5 text-emerald-300 text-xs">
-              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{withdrawSuccess}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleWithdrawSubmit} className="space-y-4">
-            <div>
-              <div className="flex justify-between items-center mb-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-300">
-                  Withdrawal Amount ($)
-                </label>
-                <span className="text-[11px] text-slate-400">Min: $100.00</span>
+            {/* Mandatory Active Investment Check Notification */}
+            {hasActiveInvestment === false && (
+              <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs sm:text-sm flex items-start gap-3">
+                <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-bold">Withdrawal Condition Unmet:</div>
+                  <div className="mt-0.5 text-xs text-slate-300">
+                    You must have at least 1 active real estate investment contract to initiate a withdrawal.
+                  </div>
+                  <button
+                    onClick={onGoToInvest}
+                    className="mt-2.5 px-3 py-1.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-lg inline-flex items-center gap-1.5"
+                  >
+                    <Building className="w-3.5 h-3.5" />
+                    <span>Choose an Investment Package</span>
+                  </button>
+                </div>
               </div>
-              <input
-                type="number"
-                min="100"
-                step="any"
-                value={withdrawAmount}
-                onChange={(e) => setWithdrawAmount(e.target.value)}
-                placeholder="Minimum $100"
-                className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-semibold"
-                required
-              />
+            )}
+
+            {/* Prompt to bind method if missing */}
+            {!isPrepaidBound && (
+              <div className="mb-6 p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs sm:text-sm flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-bold">Withdrawal Method Unset:</div>
+                  <div className="mt-0.5 text-xs text-rose-200">
+                    You must bind your <strong>GCash</strong> or <strong>Maya</strong> account in the section above before submitting a withdrawal request.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Mandatory 2-Hour Disclaimer Notice */}
+            <div className="mb-6 p-4 rounded-2xl bg-blue-950/40 border border-blue-500/30 text-blue-200 text-xs sm:text-sm flex items-center gap-3">
+              <Clock className="w-5 h-5 text-blue-400 shrink-0" />
+              <div className="font-medium italic">
+                "Withdrawals are processed manually and take approximately 2 hours to receive."
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
-                Destination Account / Wallet Address
-              </label>
-              <textarea
-                rows={2}
-                value={accountDetails}
-                onChange={(e) => setAccountDetails(e.target.value)}
-                placeholder="e.g. USDT (TRC20): TXYz... or Bank Account details"
-                className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-                required
-              />
-            </div>
+            {withdrawError && (
+              <div className="mb-5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2.5 text-rose-300 text-xs">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{withdrawError}</span>
+              </div>
+            )}
 
-            <button
-              type="submit"
-              disabled={withdrawLoading || hasActiveInvestment === false}
-              className="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm rounded-xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
-            >
-              {withdrawLoading ? (
-                <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <span>Request Payout</span>
-                  <ArrowUpCircle className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </form>
+            {withdrawSuccess && (
+              <div className="mb-5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2.5 text-emerald-300 text-xs">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{withdrawSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleWithdrawSubmit} className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                    Withdrawal Amount (₱)
+                  </label>
+                  <span className="text-[11px] text-slate-400">Min: ₱100.00</span>
+                </div>
+                <input
+                  type="number"
+                  min="100"
+                  step="any"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="Minimum ₱100"
+                  className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-semibold"
+                  required
+                />
+              </div>
+
+              {/* Destination preview */}
+              <div className="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between text-xs">
+                <span className="text-slate-400">Payout Destination:</span>
+                {isPrepaidBound ? (
+                  <span className="font-bold text-white flex items-center gap-1.5">
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-black ${
+                        user.withdrawalMethod === 'GCash'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-emerald-600 text-white'
+                      }`}
+                    >
+                      {user.withdrawalMethod}
+                    </span>
+                    <span>{user.accountName} ({user.accountNumber})</span>
+                  </span>
+                ) : (
+                  <span className="text-rose-400 font-semibold">Not configured yet</span>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={
+                  withdrawLoading ||
+                  hasActiveInvestment === false ||
+                  !isPrepaidBound
+                }
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm rounded-xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {withdrawLoading ? (
+                  <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span>Request Payout to {user.withdrawalMethod || 'Wallet'}</span>
+                    <ArrowUpCircle className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
         </div>
       )}
 
@@ -541,7 +808,7 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
                   className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl flex items-center justify-between text-xs"
                 >
                   <div>
-                    <div className="font-bold text-white text-sm">+${dep.amount.toFixed(2)}</div>
+                    <div className="font-bold text-white text-sm">+₱{dep.amount.toFixed(2)}</div>
                     <div className="text-[10px] text-slate-400">
                       {dep.createdAt?.seconds
                         ? new Date(dep.createdAt.seconds * 1000).toLocaleString()
@@ -596,9 +863,22 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
                   className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl flex items-center justify-between text-xs"
                 >
                   <div>
-                    <div className="font-bold text-white text-sm">-${w.amount.toFixed(2)}</div>
-                    <div className="text-[10px] text-slate-400 truncate max-w-[160px]">
-                      {w.accountDetails || 'USDT / Account'}
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-white text-sm">-₱{w.amount.toFixed(2)}</span>
+                      {w.withdrawalMethod && (
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold ${
+                            w.withdrawalMethod === 'GCash'
+                              ? 'bg-blue-600/30 text-blue-300 border border-blue-500/40'
+                              : 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
+                          }`}
+                        >
+                          {w.withdrawalMethod}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-slate-400 truncate max-w-[180px] mt-0.5 font-mono">
+                      {w.accountName ? `${w.accountName} (${w.accountNumber})` : w.accountDetails || 'Prepaid Wallet'}
                     </div>
                   </div>
 

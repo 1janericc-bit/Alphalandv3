@@ -95,7 +95,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       Balance
                     </div>
                     <div className="text-sm sm:text-base font-bold text-white tracking-wide">
-                      ${user.balance.toFixed(2)}
+                      ₱{user.balance.toFixed(2)}
                     </div>
                   </div>
                 </div>

@@ -69,7 +69,7 @@ export const MissionsPanel: React.FC<MissionsPanelProps> = ({
 
     try {
       const reward = await claimMission(user.id, missionId, activeReferrals);
-      setSuccess(`Congratulations! Reward of $${reward.toFixed(2)} credited to your wallet!`);
+      setSuccess(`Congratulations! Reward of ₱${reward.toFixed(2)} credited to your wallet!`);
       onRefreshUser();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to claim reward.');
@@ -108,7 +108,7 @@ export const MissionsPanel: React.FC<MissionsPanelProps> = ({
             <span>Recruitment Milestone Rewards</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            VIP Syndicate Missions
+            VIP Missions
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-md">
             Invite friends to invest in real estate plans and unlock cumulative cash bonuses!
@@ -197,7 +197,7 @@ export const MissionsPanel: React.FC<MissionsPanelProps> = ({
                 <div className="flex sm:flex-col items-center sm:items-end justify-between gap-3 shrink-0 sm:min-w-[140px]">
                   <div className="text-right">
                     <div className="text-[10px] uppercase font-bold text-slate-400">Reward</div>
-                    <div className="text-2xl font-black text-amber-400">+${mission.reward}</div>
+                    <div className="text-2xl font-black text-amber-400">+₱{mission.reward}</div>
                   </div>
 
                   {isClaimed ? (

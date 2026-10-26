@@ -204,7 +204,7 @@ export async function purchaseInvestmentPlan(
     const userData = userDoc.data() as User;
     if (userData.balance < plan.cost) {
       throw new Error(
-        `Insufficient wallet balance ($${userData.balance.toFixed(2)}). Plan cost is $${plan.cost}. Please deposit funds first.`
+        `Insufficient wallet balance (₱${userData.balance.toFixed(2)}). Plan cost is ₱${plan.cost}. Please deposit funds first.`
       );
     }
 
@@ -443,16 +443,60 @@ export async function rejectDeposit(depositId: string): Promise<void> {
 }
 
 /**
- * Withdrawals
+ * Withdrawals & Prepaid Account Binding
  */
+export async function updateUserWithdrawalAccount(
+  userId: string,
+  withdrawalMethod: 'GCash' | 'Maya',
+  accountName: string,
+  accountNumber: string
+): Promise<void> {
+  const cleanMethod = withdrawalMethod.trim() as 'GCash' | 'Maya';
+  if (cleanMethod !== 'GCash' && cleanMethod !== 'Maya') {
+    throw new Error('Only GCash and Maya prepaid payout methods are supported.');
+  }
+
+  const cleanName = accountName.trim();
+  const cleanNumber = accountNumber.trim();
+
+  if (!cleanName || cleanName.length < 2) {
+    throw new Error('Please enter a valid account holder name (minimum 2 characters).');
+  }
+  if (!cleanNumber || cleanNumber.length < 8) {
+    throw new Error('Please enter a valid GCash or Maya mobile/account number (minimum 8 digits).');
+  }
+
+  const userRef = doc(db, 'users', userId);
+  await updateDoc(userRef, {
+    withdrawalMethod: cleanMethod,
+    accountName: cleanName,
+    accountNumber: cleanNumber,
+  });
+}
+
 export async function requestWithdrawal(
   userId: string,
   userMobile: string,
-  amount: number,
-  accountDetails: string
+  amount: number
 ): Promise<Withdrawal> {
   if (amount < 100) {
     throw new Error('Minimum withdrawal amount is $100.');
+  }
+
+  const userRef = doc(db, 'users', userId);
+  const userDocSnap = await getDoc(userRef);
+  if (!userDocSnap.exists()) throw new Error('User not found.');
+  const userCurrentData = userDocSnap.data() as User;
+
+  // Strict Prepaid Method Validation: Must have GCash or Maya configured
+  if (
+    !userCurrentData.withdrawalMethod ||
+    !userCurrentData.accountName ||
+    !userCurrentData.accountNumber
+  ) {
+    throw new Error(
+      'Prepaid account binding required: Please bind your GCash or Maya account details before requesting a withdrawal.'
+    );
   }
 
   // Check condition: User must have at least 1 active investment
@@ -471,9 +515,7 @@ export async function requestWithdrawal(
     );
   }
 
-  const userRef = doc(db, 'users', userId);
   const withRef = doc(collection(db, 'withdrawals'));
-
   let createdWithdrawal: Withdrawal;
 
   await runTransaction(db, async (txn) => {
@@ -483,7 +525,7 @@ export async function requestWithdrawal(
 
     if (userData.balance < amount) {
       throw new Error(
-        `Insufficient balance. You have $${userData.balance.toFixed(2)}, cannot withdraw $${amount}.`
+        `Insufficient balance. You have ₱${userData.balance.toFixed(2)}, cannot withdraw ₱${amount}.`
       );
     }
 
@@ -495,7 +537,10 @@ export async function requestWithdrawal(
       userId,
       userMobile,
       amount,
-      accountDetails,
+      withdrawalMethod: userData.withdrawalMethod,
+      accountName: userData.accountName,
+      accountNumber: userData.accountNumber,
+      accountDetails: `${userData.withdrawalMethod}: ${userData.accountName} (${userData.accountNumber})`,
       status: 'pending' as const,
       createdAt: Timestamp.now(),
     };

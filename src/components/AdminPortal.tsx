@@ -169,7 +169,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setProcessingId(dep.id);
     try {
       await approveDeposit(dep.id);
-      setActionNotice(`Approved deposit of $${dep.amount.toFixed(2)} and credited user balance.`);
+      setActionNotice(`Approved deposit of ₱${dep.amount.toFixed(2)} and credited user balance.`);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error approving deposit');
     } finally {
@@ -183,7 +183,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setProcessingId(dep.id);
     try {
       await rejectDeposit(dep.id);
-      setActionNotice(`Deposit request for $${dep.amount.toFixed(2)} marked as rejected.`);
+      setActionNotice(`Deposit request for ₱${dep.amount.toFixed(2)} marked as rejected.`);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error rejecting deposit');
     } finally {
@@ -197,7 +197,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setProcessingId(w.id);
     try {
       await updateWithdrawalStatus(w.id, 'approved');
-      setActionNotice(`Withdrawal of $${w.amount.toFixed(2)} approved.`);
+      setActionNotice(`Withdrawal of ₱${w.amount.toFixed(2)} approved.`);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error approving withdrawal');
     } finally {
@@ -210,7 +210,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setProcessingId(w.id);
     try {
       await updateWithdrawalStatus(w.id, 'paid');
-      setActionNotice(`Withdrawal of $${w.amount.toFixed(2)} marked as Paid.`);
+      setActionNotice(`Withdrawal of ₱${w.amount.toFixed(2)} marked as Paid.`);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error updating withdrawal');
     } finally {
@@ -224,7 +224,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setProcessingId(w.id);
     try {
       await updateWithdrawalStatus(w.id, 'rejected');
-      setActionNotice(`Withdrawal rejected. Refunded $${w.amount.toFixed(2)} back to user balance.`);
+      setActionNotice(`Withdrawal rejected. Refunded ₱${w.amount.toFixed(2)} back to user balance.`);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error rejecting withdrawal');
     } finally {
@@ -329,7 +329,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setCreatingCoupon(true);
     try {
       await createCoupon(code, amount);
-      setActionNotice(`Created coupon "${code}" with value $${amount.toFixed(2)}.`);
+      setActionNotice(`Created coupon "${code}" with value ₱${amount.toFixed(2)}.`);
       setNewCouponCode('');
       setNewCouponAmount('');
     } catch (err) {
@@ -520,7 +520,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           </div>
                         </td>
                         <td className="p-3 font-bold text-emerald-400 text-sm">
-                          ${dep.amount.toFixed(2)}
+                          ₱{dep.amount.toFixed(2)}
                         </td>
                         <td className="p-3">
                           {dep.proofImageUrl ? (
@@ -603,7 +603,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <tr>
                       <th className="p-3">User UID / Mobile</th>
                       <th className="p-3">Amount</th>
-                      <th className="p-3">Payout Account / Address</th>
+                      <th className="p-3">Method</th>
+                      <th className="p-3">Recipient Account Details</th>
                       <th className="p-3">Date</th>
                       <th className="p-3">Status</th>
                       <th className="p-3 text-right">Actions</th>
@@ -619,10 +620,28 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           </div>
                         </td>
                         <td className="p-3 font-bold text-emerald-400 text-sm">
-                          ${w.amount.toFixed(2)}
+                          ₱{w.amount.toFixed(2)}
                         </td>
-                        <td className="p-3 text-slate-300 font-mono text-[11px] max-w-[200px] break-all">
-                          {w.accountDetails || 'USDT / Account'}
+                        <td className="p-3">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-black ${
+                              w.withdrawalMethod === 'GCash'
+                                ? 'bg-blue-600 text-white'
+                                : w.withdrawalMethod === 'Maya'
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-slate-800 text-slate-300'
+                            }`}
+                          >
+                            {w.withdrawalMethod || 'E-Wallet'}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <div className="font-bold text-white text-xs">
+                            {w.accountName || 'N/A'}
+                          </div>
+                          <div className="text-amber-300 font-mono text-xs font-semibold">
+                            {w.accountNumber || w.accountDetails || 'N/A'}
+                          </div>
                         </td>
                         <td className="p-3 text-slate-400">
                           {w.createdAt?.seconds
@@ -894,7 +913,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">
-                    Bonus Amount ($)
+                    Bonus Amount (₱)
                   </label>
                   <input
                     type="number"
@@ -936,7 +955,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           {c.code}
                         </div>
                         <div className="text-slate-400 font-semibold text-emerald-400 mt-0.5">
-                          Amount: ${c.amount.toFixed(2)}
+                          Amount: ₱{c.amount.toFixed(2)}
                         </div>
                       </div>
 
@@ -978,6 +997,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <tr>
                       <th className="p-3">Mobile Number</th>
                       <th className="p-3">Balance</th>
+                      <th className="p-3">Bound Payout Method</th>
                       <th className="p-3">Referral Code</th>
                       <th className="p-3">Referred By UID</th>
                       <th className="p-3">Registered Date</th>
@@ -987,7 +1007,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     {usersList.map((u) => (
                       <tr key={u.id} className="hover:bg-slate-800/40">
                         <td className="p-3 font-bold text-white">{u.mobileNumber}</td>
-                        <td className="p-3 font-bold text-emerald-400">${u.balance.toFixed(2)}</td>
+                        <td className="p-3 font-bold text-emerald-400">₱{u.balance.toFixed(2)}</td>
+                        <td className="p-3">
+                          {u.withdrawalMethod ? (
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-black ${
+                                  u.withdrawalMethod === 'GCash'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-emerald-600 text-white'
+                                }`}
+                              >
+                                {u.withdrawalMethod}
+                              </span>
+                              <span className="text-slate-300 font-mono text-[11px]">
+                                {u.accountNumber} ({u.accountName})
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-500 italic text-[11px]">Unbound</span>
+                          )}
+                        </td>
                         <td className="p-3 font-mono font-bold text-amber-300">{u.referralCode}</td>
                         <td className="p-3 font-mono text-slate-400 truncate max-w-[160px]">
                           {u.referredBy || 'Direct (None)'}
