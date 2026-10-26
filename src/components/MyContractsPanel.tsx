@@ -13,18 +13,21 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
+  Coins,
 } from 'lucide-react';
 
 interface MyContractsPanelProps {
   user: User | null;
   onGoToInvest: () => void;
   onRefreshUser: () => void;
+  onGoToRoulette?: () => void;
 }
 
 export const MyContractsPanel: React.FC<MyContractsPanelProps> = ({
   user,
   onGoToInvest,
   onRefreshUser,
+  onGoToRoulette,
 }) => {
   const [investments, setInvestments] = useState<UserInvestment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -303,6 +306,37 @@ export const MyContractsPanel: React.FC<MyContractsPanelProps> = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Mini Roulette Quick-Play Callout between Contracts and Wallet */}
+      {onGoToRoulette && (
+        <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-yellow-950/40 border border-amber-500/30 p-5 sm:p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+              <Coins className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-base font-black text-white">Alphaland Mini Roulette</h4>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  NEW CASINO GAME
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Play instant spins from ₱50 with up to 10x Mega Jackpot payouts! Direct wallet crediting.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onGoToRoulette}
+            className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 flex items-center gap-2 transition-all active:scale-95 shrink-0"
+          >
+            <span>Play Mini Roulette</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
       )}
 

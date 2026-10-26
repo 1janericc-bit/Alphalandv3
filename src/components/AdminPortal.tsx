@@ -5,6 +5,7 @@ import {
   Withdrawal,
   Coupon,
   User,
+  RouletteLog,
 } from '../types';
 import {
   collection,
@@ -42,6 +43,9 @@ import {
   Eye,
   AlertCircle,
   Building2,
+  Coins,
+  Flame,
+  Zap,
 } from 'lucide-react';
 
 interface AdminPortalProps {
@@ -63,7 +67,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   // Active admin tab
   const [activeAdminTab, setActiveAdminTab] = useState<
-    'deposits' | 'withdrawals' | 'settings' | 'coupons' | 'users'
+    'deposits' | 'withdrawals' | 'roulette' | 'settings' | 'coupons' | 'users'
   >('deposits');
 
   // Real-time data lists
@@ -71,6 +75,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [usersList, setUsersList] = useState<User[]>([]);
+  const [rouletteLogs, setRouletteLogs] = useState<RouletteLog[]>([]);
+  const [rouletteFilter, setRouletteFilter] = useState<'all' | 'wins' | 'jackpots'>('all');
 
   // Action states
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -138,6 +144,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       setWithdrawals(list);
     });
 
+    // Roulette logs stream
+    const logsQ = query(collection(db, 'roulette_logs'));
+    const unsubLogs = onSnapshot(logsQ, (snap) => {
+      const list: RouletteLog[] = [];
+      snap.forEach((d) => list.push({ id: d.id, ...d.data() } as RouletteLog));
+      list.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setRouletteLogs(list);
+    });
+
     // Coupons stream
     const coupQ = query(collection(db, 'coupons'));
     const unsubCoup = onSnapshot(coupQ, (snap) => {
@@ -159,6 +174,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     return () => {
       unsubDep();
       unsubWith();
+      unsubLogs();
       unsubCoup();
       unsubUsers();
     };
@@ -467,6 +483,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           {[
             { id: 'deposits', label: `Pending Deposits (${pendingDeposits.length})` },
             { id: 'withdrawals', label: `Pending Withdrawals (${pendingWithdrawals.length})` },
+            { id: 'roulette', label: `Roulette Wins / Audit Logs (${rouletteLogs.length})` },
             { id: 'settings', label: 'QR & Community Settings' },
             { id: 'coupons', label: `Coupons (${coupons.length})` },
             { id: 'users', label: `User Accounts (${usersList.length})` },
@@ -692,6 +709,215 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         </td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 2.5: Roulette Wins & Audit Logs */}
+        {activeAdminTab === 'roulette' && (
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-white">Roulette Wins & Audit Logs</h3>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                    REAL-TIME FIRESTORE AUDIT
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Direct immutable audit ledger of every player wager, multiplier, outcome, and profit calculation.
+                </p>
+              </div>
+
+              {/* Filters */}
+              <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setRouletteFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                    rouletteFilter === 'all'
+                      ? 'bg-amber-500 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  All Activity ({rouletteLogs.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRouletteFilter('wins')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                    rouletteFilter === 'wins'
+                      ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Wins Only ({rouletteLogs.filter((l) => l.multiplier > 0).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRouletteFilter('jackpots')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                    rouletteFilter === 'jackpots'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Big & Mega ({rouletteLogs.filter((l) => l.multiplier >= 4).length})
+                </button>
+              </div>
+            </div>
+
+            {/* Top Metrics Cards */}
+            {(() => {
+              const totalBets = rouletteLogs.reduce((sum, l) => sum + (l.betAmount || 0), 0);
+              const totalPayouts = rouletteLogs.reduce((sum, l) => sum + (l.payout || 0), 0);
+              const totalHouseProfit = rouletteLogs.reduce((sum, l) => sum + (l.houseProfit || 0), 0);
+              const totalWins = rouletteLogs.filter((l) => l.multiplier > 0).length;
+              const winRate = rouletteLogs.length > 0 ? (totalWins / rouletteLogs.length) * 100 : 0;
+
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+                    <div className="text-[10px] uppercase font-bold text-slate-400">Total Spins Logged</div>
+                    <div className="text-2xl font-black text-white">{rouletteLogs.length}</div>
+                    <div className="text-[10px] text-slate-400">Player Win Rate: {winRate.toFixed(1)}%</div>
+                  </div>
+
+                  <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+                    <div className="text-[10px] uppercase font-bold text-slate-400">Total Wager Volume</div>
+                    <div className="text-2xl font-black text-amber-400">₱{totalBets.toFixed(2)}</div>
+                    <div className="text-[10px] text-slate-400">Limits ₱50 – ₱300</div>
+                  </div>
+
+                  <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+                    <div className="text-[10px] uppercase font-bold text-slate-400">Total Paid Out</div>
+                    <div className="text-2xl font-black text-white">₱{totalPayouts.toFixed(2)}</div>
+                    <div className="text-[10px] text-slate-400">Directly credited to wallets</div>
+                  </div>
+
+                  <div className="bg-emerald-950/40 p-4 rounded-xl border border-emerald-500/30">
+                    <div className="text-[10px] uppercase font-bold text-emerald-400">House Net Margin</div>
+                    <div className="text-2xl font-black text-emerald-400">
+                      +₱{totalHouseProfit.toFixed(2)}
+                    </div>
+                    <div className="text-[10px] text-emerald-300 font-semibold">Casino Gross Retained</div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Audit Table */}
+            {rouletteLogs.length === 0 ? (
+              <p className="text-center py-12 text-slate-500 text-xs">No roulette games played yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-950 text-slate-400 uppercase font-semibold">
+                    <tr>
+                      <th className="p-3">Mobile Number</th>
+                      <th className="p-3">Bet Amount</th>
+                      <th className="p-3">Multiplier / Tier</th>
+                      <th className="p-3">Payout / Profit</th>
+                      <th className="p-3">Time & Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {rouletteLogs
+                      .filter((l) => {
+                        if (rouletteFilter === 'wins') return l.multiplier > 0;
+                        if (rouletteFilter === 'jackpots') return l.multiplier >= 4;
+                        return true;
+                      })
+                      .map((log) => {
+                        const isWin = (log.multiplier || 0) > 0;
+                        const isJackpot = (log.multiplier || 0) >= 10;
+                        const isBig = (log.multiplier || 0) >= 4;
+
+                        return (
+                          <tr key={log.id} className="hover:bg-slate-800/40 transition-colors">
+                            {/* Mobile Number */}
+                            <td className="p-3">
+                              <div className="font-bold text-white flex items-center gap-1.5">
+                                <span>{log.mobileNumber || 'N/A'}</span>
+                                {isJackpot && (
+                                  <span className="p-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px]">
+                                    🔥
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-mono truncate max-w-[130px]">
+                                {log.userId}
+                              </div>
+                            </td>
+
+                            {/* Bet Amount */}
+                            <td className="p-3 font-bold text-white text-sm font-mono">
+                              ₱{log.betAmount.toFixed(2)}
+                            </td>
+
+                            {/* Multiplier */}
+                            <td className="p-3">
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-black tracking-wide ${
+                                    isJackpot
+                                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50'
+                                      : isBig
+                                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50'
+                                      : isWin
+                                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                      : 'bg-slate-800 text-slate-400 border border-slate-700'
+                                  }`}
+                                >
+                                  {log.multiplier}x
+                                </span>
+                                <span className="text-[11px] text-slate-300 font-medium">
+                                  {log.outcome}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Payout / Profit */}
+                            <td className="p-3">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`font-bold font-mono text-sm ${
+                                    isWin ? 'text-emerald-400' : 'text-slate-400'
+                                  }`}
+                                >
+                                  Payout: ₱{log.payout.toFixed(2)}
+                                </span>
+                                <span
+                                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                    log.playerProfit > 0
+                                      ? 'bg-emerald-500/10 text-emerald-300'
+                                      : log.playerProfit === 0
+                                      ? 'bg-slate-800 text-slate-400'
+                                      : 'bg-rose-500/10 text-rose-300'
+                                  }`}
+                                >
+                                  {log.playerProfit >= 0
+                                    ? `+₱${log.playerProfit.toFixed(2)}`
+                                    : `-₱${Math.abs(log.playerProfit).toFixed(2)}`}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                House Margin: {log.houseProfit >= 0 ? '+' : ''}₱{log.houseProfit.toFixed(2)}
+                              </div>
+                            </td>
+
+                            {/* Time & Date */}
+                            <td className="p-3 text-slate-400 font-mono text-[11px]">
+                              {log.createdAt?.seconds
+                                ? new Date(log.createdAt.seconds * 1000).toLocaleString()
+                                : 'Just now'}
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>

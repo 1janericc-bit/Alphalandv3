@@ -75,5 +75,18 @@ service cloud.firestore {
       allow update: if isValidId(commissionId);
       allow delete: if false;
     }
+
+    // Roulette logs collection
+    match /roulette_logs/{logId} {
+      allow read: if true;
+      allow create: if isValidId(logId)
+                    && request.resource.data.userId is string
+                    && request.resource.data.betAmount is number
+                    && request.resource.data.outcome is string
+                    && request.resource.data.multiplier is number
+                    && request.resource.data.payout is number;
+      allow update: if false;
+      allow delete: if false;
+    }
   }
 }

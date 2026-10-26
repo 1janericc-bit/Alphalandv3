@@ -22,8 +22,16 @@ import {
   Coupon,
   AppSettings,
   Commission,
+  RouletteLog,
+  RouletteTierConfig,
 } from '../types';
 import { MISSIONS, COMMISSION_RATES } from '../constants/plans';
+import {
+  MIN_BET,
+  MAX_BET,
+  generateSpinOutcome,
+  calculateSpinMetrics,
+} from '../utils/rouletteEngine';
 
 const DEFAULT_DEPOSIT_QR =
   'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=usdt-trc20-deposit-alphaland-official';
@@ -689,3 +697,77 @@ export async function claimMission(
 
   return mission.reward;
 }
+
+/**
+ * Mini Roulette Spin Transaction
+ * Atomically checks user balance, deducts bet, adds payout, and writes to roulette_logs
+ */
+export async function executeRouletteSpin(
+  userId: string,
+  userMobile: string,
+  betAmount: number
+): Promise<{
+  outcome: RouletteTierConfig;
+  payout: number;
+  playerProfit: number;
+  houseProfit: number;
+  newBalance: number;
+  logId: string;
+}> {
+  if (betAmount < MIN_BET || betAmount > MAX_BET) {
+    throw new Error(`Bet must be between ₱${MIN_BET} and ₱${MAX_BET}.`);
+  }
+
+  // 1. Decoupled outcome generation
+  const tier = generateSpinOutcome();
+  const metrics = calculateSpinMetrics(betAmount, tier);
+
+  const userRef = doc(db, 'users', userId);
+  const logRef = doc(collection(db, 'roulette_logs'));
+
+  let newBalance = 0;
+
+  await runTransaction(db, async (txn) => {
+    const userDoc = await txn.get(userRef);
+    if (!userDoc.exists()) {
+      throw new Error('User account not found.');
+    }
+
+    const userData = userDoc.data() as User;
+    if (userData.balance < betAmount) {
+      throw new Error(
+        `Insufficient wallet balance. You have ₱${userData.balance.toFixed(2)}, cannot bet ₱${betAmount}.`
+      );
+    }
+
+    newBalance = Number((userData.balance - betAmount + metrics.payout).toFixed(2));
+
+    txn.update(userRef, {
+      balance: newBalance,
+    });
+
+    const logData = {
+      userId,
+      mobileNumber: userMobile,
+      betAmount,
+      outcome: metrics.outcome,
+      multiplier: metrics.multiplier,
+      payout: metrics.payout,
+      playerProfit: metrics.playerProfit,
+      houseProfit: metrics.houseProfit,
+      createdAt: serverTimestamp(),
+    };
+
+    txn.set(logRef, logData);
+  });
+
+  return {
+    outcome: tier,
+    payout: metrics.payout,
+    playerProfit: metrics.playerProfit,
+    houseProfit: metrics.houseProfit,
+    newBalance,
+    logId: logRef.id,
+  };
+}
+

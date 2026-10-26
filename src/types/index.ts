@@ -96,3 +96,33 @@ export interface Mission {
   reward: number;
   description: string;
 }
+
+export type RouletteOutcomeName =
+  | 'Mega Jackpot'
+  | 'Big Win'
+  | 'Win'
+  | 'Small Win'
+  | 'Lose';
+
+export interface RouletteTierConfig {
+  name: RouletteOutcomeName;
+  chance: number; // e.g. 0.005 for 0.5%
+  multiplier: number; // e.g. 10
+  color: string;
+  bgClass: string;
+  badgeClass: string;
+}
+
+export interface RouletteLog {
+  id?: string;
+  userId: string;
+  mobileNumber: string;
+  betAmount: number;
+  outcome: RouletteOutcomeName | string;
+  multiplier: number;
+  payout: number;
+  playerProfit: number;
+  houseProfit: number;
+  createdAt: any;
+}
+

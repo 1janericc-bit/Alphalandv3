@@ -13,6 +13,7 @@ import { WalletPanel } from './components/WalletPanel';
 import { TeamPanel } from './components/TeamPanel';
 import { MissionsPanel } from './components/MissionsPanel';
 import { CouponPanel } from './components/CouponPanel';
+import { RouletteGamePanel } from './components/RouletteGamePanel';
 import { AdminPortal } from './components/AdminPortal';
 
 import {
@@ -22,6 +23,7 @@ import {
   Users,
   Trophy,
   Ticket,
+  Coins,
 } from 'lucide-react';
 
 export default function App() {
@@ -170,6 +172,18 @@ export default function App() {
           <MyContractsPanel
             user={user}
             onGoToInvest={() => setActiveTab('invest')}
+            onGoToRoulette={() => setActiveTab('roulette')}
+            onRefreshUser={() => {
+              if (user) getUserById(user.id).then((u) => u && setUser(u));
+            }}
+          />
+        )}
+
+        {activeTab === 'roulette' && (
+          <RouletteGamePanel
+            user={user}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            onGoToWallet={() => setActiveTab('wallet')}
             onRefreshUser={() => {
               if (user) getUserById(user.id).then((u) => u && setUser(u));
             }}
@@ -223,6 +237,7 @@ export default function App() {
         {[
           { id: 'invest', label: 'Invest', icon: Building2 },
           { id: 'my-contracts', label: 'Contracts', icon: Clock },
+          { id: 'roulette', label: 'Roulette', icon: Coins },
           { id: 'wallet', label: 'Wallet', icon: Wallet },
           { id: 'team', label: 'Team', icon: Users },
           { id: 'missions', label: 'Missions', icon: Trophy },

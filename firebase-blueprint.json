@@ -104,6 +104,23 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uplineUserId", "fromUserId", "level", "amount"]
+    },
+    "RouletteLog": {
+      "title": "RouletteLog",
+      "description": "Log of every Mini Roulette spin with bet, outcome, payout and profit metrics",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "mobileNumber": { "type": "string", "maxLength": 20 },
+        "betAmount": { "type": "number" },
+        "outcome": { "type": "string", "maxLength": 50 },
+        "multiplier": { "type": "number" },
+        "payout": { "type": "number" },
+        "playerProfit": { "type": "number" },
+        "houseProfit": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "mobileNumber", "betAmount", "outcome", "multiplier", "payout", "playerProfit", "houseProfit"]
     }
   },
   "firestore": {
@@ -134,6 +151,10 @@
     "/commissions/{commissionId}": {
       "schema": "Commission",
       "description": "Audit records for multi-level marketing commissions"
+    },
+    "/roulette_logs/{logId}": {
+      "schema": "RouletteLog",
+      "description": "Audit logs for roulette bets, outcomes and payouts"
     }
   }
 }

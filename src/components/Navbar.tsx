@@ -59,6 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               {[
                 { id: 'invest', label: 'Investments' },
                 { id: 'my-contracts', label: 'My Contracts' },
+                { id: 'roulette', label: 'Mini Roulette' },
                 { id: 'wallet', label: 'Wallet' },
                 { id: 'team', label: 'Team & MLM' },
                 { id: 'missions', label: 'Missions' },
