@@ -6,9 +6,13 @@ import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 
+// Explicitly configure storageBucket matching the Firebase project ID
+export const STORAGE_BUCKET =
+  firebaseConfig.storageBucket || `${firebaseConfig.projectId}.firebasestorage.app`;
+
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
-export const storage = getStorage(app, firebaseConfig.storageBucket);
+export const storage = getStorage(app, STORAGE_BUCKET);
 
 export enum OperationType {
   CREATE = 'create',

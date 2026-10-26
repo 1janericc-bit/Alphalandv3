@@ -40,6 +40,7 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [depositLoading, setDepositLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [depositError, setDepositError] = useState<string | null>(null);
   const [depositSuccess, setDepositSuccess] = useState<string | null>(null);
 
@@ -135,9 +136,14 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
     }
 
     setDepositLoading(true);
+    setUploadProgress(0);
+
     try {
-      // Step 1: Upload to Firebase Storage 'deposit-proofs/' with robust try/catch
-      const uploadedUrl = await uploadImageToStorage(proofFile, 'deposit-proofs');
+      console.log(`[Wallet] Uploading deposit proof: ${proofFile.name} (${proofFile.size} bytes)`);
+      // Step 1: Upload to Firebase Storage 'deposit-proofs/' with robust try/catch & progress
+      const uploadedUrl = await uploadImageToStorage(proofFile, 'deposit-proofs', {
+        onProgress: (p) => setUploadProgress(p),
+      });
 
       // Step 2: Submit to Firestore deposits collection
       await submitDeposit(user.id, user.mobileNumber, amountNum, uploadedUrl);
@@ -149,12 +155,14 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
       setProofFile(null);
       setPreviewUrl(null);
     } catch (err) {
-      setDepositError(
-        err instanceof Error ? err.message : 'Failed to submit deposit. Please try again.'
-      );
+      console.error("Upload error:", err);
+      const msg = err instanceof Error ? err.message : 'Failed to submit deposit. Please try again.';
+      setDepositError(`Upload error: ${msg}`);
+      alert(`Deposit Submission Error: ${msg}`);
     } finally {
-      // Explicitly placed in finally block to prevent infinite hanging
+      // Guaranteed to execute so the UI never gets stuck in an infinite spinner
       setDepositLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -372,15 +380,30 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
                 </div>
               </div>
 
+              {depositLoading && (
+                <div className="p-3 rounded-xl bg-slate-950/80 border border-amber-500/30">
+                  <div className="flex justify-between text-xs text-amber-400 font-semibold mb-1.5">
+                    <span>Uploading screenshot to Firebase Storage...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={depositLoading}
-                className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-sm rounded-xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-sm rounded-xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {depositLoading ? (
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                    <span>Uploading Proof to Storage...</span>
+                    <span>Uploading Proof ({uploadProgress}%)...</span>
                   </div>
                 ) : (
                   <>

@@ -82,7 +82,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [communityChatLink, setCommunityChatLink] = useState(settings?.communityChatLink || '');
   const [communityQrUrl, setCommunityQrUrl] = useState(settings?.communityQrUrl || '');
   const [uploadingDepositQr, setUploadingDepositQr] = useState(false);
+  const [depositQrProgress, setDepositQrProgress] = useState(0);
+  const [depositQrError, setDepositQrError] = useState<string | null>(null);
+
   const [uploadingCommunityQr, setUploadingCommunityQr] = useState(false);
+  const [communityQrProgress, setCommunityQrProgress] = useState(0);
+  const [communityQrError, setCommunityQrError] = useState<string | null>(null);
+
   const [savingSettings, setSavingSettings] = useState(false);
 
   // New coupon state
@@ -227,40 +233,68 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
-  // Upload handlers with try/catch/finally
+  // Upload handlers with strict try/catch/finally
   const handleUploadDepositQr = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setUploadingDepositQr(true);
-      try {
-        const url = await uploadImageToStorage(file, 'admin-qr');
-        setActiveDepositQrUrl(url);
-        await updateAppSettings({ activeDepositQrUrl: url });
-        onRefreshSettings();
-        setActionNotice('Official Payment Deposit QR Code updated successfully.');
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to upload deposit QR code.');
-      } finally {
-        setUploadingDepositQr(false);
-      }
+    const input = e.target;
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+
+    setDepositQrError(null);
+    setUploadingDepositQr(true);
+    setDepositQrProgress(0);
+
+    try {
+      console.log(`[Admin] Initiating upload for deposit QR: ${file.name} (${file.size} bytes)`);
+      const url = await uploadImageToStorage(file, 'admin-qr', {
+        onProgress: (p) => setDepositQrProgress(p),
+      });
+
+      setActiveDepositQrUrl(url);
+      await updateAppSettings({ activeDepositQrUrl: url });
+      onRefreshSettings();
+      setActionNotice('Official Payment Deposit QR Code updated and saved successfully.');
+    } catch (error) {
+      console.error("Upload error:", error);
+      const errMsg = error instanceof Error ? error.message : 'Failed to upload deposit QR code.';
+      setDepositQrError(errMsg);
+      alert(`Deposit QR Upload Error: ${errMsg}`);
+    } finally {
+      // Placed inside finally block to guarantee the UI never hangs
+      setUploadingDepositQr(false);
+      setDepositQrProgress(0);
+      input.value = '';
     }
   };
 
   const handleUploadCommunityQr = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setUploadingCommunityQr(true);
-      try {
-        const url = await uploadImageToStorage(file, 'admin-qr');
-        setCommunityQrUrl(url);
-        await updateAppSettings({ communityQrUrl: url });
-        onRefreshSettings();
-        setActionNotice('Community VIP QR Code updated successfully.');
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to upload community QR code.');
-      } finally {
-        setUploadingCommunityQr(false);
-      }
+    const input = e.target;
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+
+    setCommunityQrError(null);
+    setUploadingCommunityQr(true);
+    setCommunityQrProgress(0);
+
+    try {
+      console.log(`[Admin] Initiating upload for community QR: ${file.name} (${file.size} bytes)`);
+      const url = await uploadImageToStorage(file, 'admin-qr', {
+        onProgress: (p) => setCommunityQrProgress(p),
+      });
+
+      setCommunityQrUrl(url);
+      await updateAppSettings({ communityQrUrl: url });
+      onRefreshSettings();
+      setActionNotice('Community VIP QR Code updated and saved successfully.');
+    } catch (error) {
+      console.error("Upload error:", error);
+      const errMsg = error instanceof Error ? error.message : 'Failed to upload community QR code.';
+      setCommunityQrError(errMsg);
+      alert(`Community QR Upload Error: ${errMsg}`);
+    } finally {
+      // Placed inside finally block to guarantee the UI never hangs
+      setUploadingCommunityQr(false);
+      setCommunityQrProgress(0);
+      input.value = '';
     }
   };
 
@@ -659,15 +693,48 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 This QR code is strictly displayed in the user <strong>Deposit Gateway</strong> for receiving payments.
               </p>
 
+              {depositQrError && (
+                <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{depositQrError}</span>
+                </div>
+              )}
+
               <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col items-center">
                 <img
                   src={activeDepositQrUrl}
                   alt="Current Deposit QR"
                   className="w-40 h-40 object-contain rounded-xl bg-white p-2 mb-3 shadow"
                 />
-                <label className="cursor-pointer px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl flex items-center gap-2 shadow transition-all active:scale-95">
+
+                {uploadingDepositQr && (
+                  <div className="w-full max-w-xs mb-3">
+                    <div className="flex justify-between text-[11px] text-amber-400 font-semibold mb-1">
+                      <span>Uploading to Firebase Storage...</span>
+                      <span>{depositQrProgress}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-amber-500 rounded-full transition-all duration-300"
+                        style={{ width: `${depositQrProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <label
+                  className={`px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl flex items-center gap-2 shadow transition-all ${
+                    uploadingDepositQr
+                      ? 'opacity-50 cursor-not-allowed pointer-events-none'
+                      : 'cursor-pointer active:scale-95'
+                  }`}
+                >
                   <Upload className="w-4 h-4" />
-                  <span>{uploadingDepositQr ? 'Uploading QR...' : 'Upload New Deposit QR Image'}</span>
+                  <span>
+                    {uploadingDepositQr
+                      ? `Uploading QR (${depositQrProgress}%)...`
+                      : 'Upload New Deposit QR Image'}
+                  </span>
                   <input
                     type="file"
                     accept="image/*"
@@ -701,15 +768,48 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 These settings are strictly for the <strong>Login Popup Modal</strong> and the <strong>Team & MLM Panel</strong>. Never mixed with payment QR!
               </p>
 
+              {communityQrError && (
+                <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{communityQrError}</span>
+                </div>
+              )}
+
               <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col items-center">
                 <img
                   src={communityQrUrl}
                   alt="Current Community QR"
                   className="w-40 h-40 object-contain rounded-xl bg-white p-2 mb-3 shadow"
                 />
-                <label className="cursor-pointer px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow transition-all active:scale-95">
+
+                {uploadingCommunityQr && (
+                  <div className="w-full max-w-xs mb-3">
+                    <div className="flex justify-between text-[11px] text-blue-400 font-semibold mb-1">
+                      <span>Uploading to Firebase Storage...</span>
+                      <span>{communityQrProgress}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                        style={{ width: `${communityQrProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <label
+                  className={`px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow transition-all ${
+                    uploadingCommunityQr
+                      ? 'opacity-50 cursor-not-allowed pointer-events-none'
+                      : 'cursor-pointer active:scale-95'
+                  }`}
+                >
                   <Upload className="w-4 h-4" />
-                  <span>{uploadingCommunityQr ? 'Uploading QR...' : 'Upload New Community QR Image'}</span>
+                  <span>
+                    {uploadingCommunityQr
+                      ? `Uploading QR (${communityQrProgress}%)...`
+                      : 'Upload New Community QR Image'}
+                  </span>
                   <input
                     type="file"
                     accept="image/*"
