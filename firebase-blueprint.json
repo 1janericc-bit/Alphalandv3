@@ -1,0 +1,133 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User account and wallet balance",
+      "type": "object",
+      "properties": {
+        "mobileNumber": { "type": "string", "maxLength": 20 },
+        "password": { "type": "string", "maxLength": 100 },
+        "balance": { "type": "number" },
+        "referralCode": { "type": "string", "maxLength": 20 },
+        "referredBy": { "type": "string", "maxLength": 50 },
+        "claimedMissions": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["mobileNumber", "password", "balance", "referralCode"]
+    },
+    "Investment": {
+      "title": "Investment",
+      "description": "Purchased real estate investment plan",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "planName": { "type": "string", "maxLength": 50 },
+        "cost": { "type": "number" },
+        "dailyReturn": { "type": "number" },
+        "daysRemaining": { "type": "number" },
+        "daysCollectedCount": { "type": "number" },
+        "lastCollectedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "planName", "cost", "dailyReturn", "daysRemaining", "daysCollectedCount"]
+    },
+    "Deposit": {
+      "title": "Deposit",
+      "description": "Deposit transaction with payment proof screenshot",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "userMobile": { "type": "string", "maxLength": 20 },
+        "amount": { "type": "number" },
+        "proofImageUrl": { "type": "string", "maxLength": 2000 },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "amount", "proofImageUrl", "status"]
+    },
+    "Withdrawal": {
+      "title": "Withdrawal",
+      "description": "Withdrawal request by user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "userMobile": { "type": "string", "maxLength": 20 },
+        "amount": { "type": "number" },
+        "accountDetails": { "type": "string", "maxLength": 200 },
+        "status": { "type": "string", "enum": ["pending", "approved", "paid", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "amount", "status"]
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "description": "One-time promotional or gift coupon",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "maxLength": 50 },
+        "amount": { "type": "number" },
+        "isUsed": { "type": "boolean" },
+        "usedBy": { "type": "string", "maxLength": 128 },
+        "usedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "amount", "isUsed"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Global application configuration",
+      "type": "object",
+      "properties": {
+        "activeDepositQrUrl": { "type": "string", "maxLength": 2000 },
+        "communityChatLink": { "type": "string", "maxLength": 2000 },
+        "communityQrUrl": { "type": "string", "maxLength": 2000 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Commission": {
+      "title": "Commission",
+      "description": "MLM Commission record paid to upline",
+      "type": "object",
+      "properties": {
+        "uplineUserId": { "type": "string", "maxLength": 128 },
+        "fromUserId": { "type": "string", "maxLength": 128 },
+        "level": { "type": "number" },
+        "percentage": { "type": "number" },
+        "amount": { "type": "number" },
+        "planName": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uplineUserId", "fromUserId", "level", "amount"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User account documents keyed by User UID"
+    },
+    "/investments/{investmentId}": {
+      "schema": "Investment",
+      "description": "Investments made by users"
+    },
+    "/deposits/{depositId}": {
+      "schema": "Deposit",
+      "description": "Deposit proofs uploaded by users for admin verification"
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": "Withdrawal",
+      "description": "Withdrawal requests queued for processing"
+    },
+    "/coupons/{couponCode}": {
+      "schema": "Coupon",
+      "description": "One-time use coupon codes"
+    },
+    "/settings/{settingId}": {
+      "schema": "Settings",
+      "description": "Global settings such as deposit QR code and community links"
+    },
+    "/commissions/{commissionId}": {
+      "schema": "Commission",
+      "description": "Audit records for multi-level marketing commissions"
+    }
+  }
+}

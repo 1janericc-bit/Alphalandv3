@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isValidId(userId)
+                    && request.resource.data.mobileNumber is string
+                    && request.resource.data.password is string
+                    && request.resource.data.balance is number;
+      allow update: if isValidId(userId);
+      allow delete: if false;
+    }
+
+    // Investments collection
+    match /investments/{investmentId} {
+      allow read: if true;
+      allow create: if isValidId(investmentId)
+                    && request.resource.data.userId is string
+                    && request.resource.data.cost is number;
+      allow update: if isValidId(investmentId);
+      allow delete: if false;
+    }
+
+    // Deposits collection
+    match /deposits/{depositId} {
+      allow read: if true;
+      allow create: if isValidId(depositId)
+                    && request.resource.data.userId is string
+                    && request.resource.data.amount is number
+                    && request.resource.data.status is string;
+      allow update: if isValidId(depositId);
+      allow delete: if false;
+    }
+
+    // Withdrawals collection
+    match /withdrawals/{withdrawalId} {
+      allow read: if true;
+      allow create: if isValidId(withdrawalId)
+                    && request.resource.data.userId is string
+                    && request.resource.data.amount is number
+                    && request.resource.data.status is string;
+      allow update: if isValidId(withdrawalId);
+      allow delete: if false;
+    }
+
+    // Coupons collection
+    match /coupons/{couponCode} {
+      allow read: if true;
+      allow create: if isValidId(couponCode)
+                    && request.resource.data.code is string
+                    && request.resource.data.amount is number;
+      allow update: if isValidId(couponCode);
+      allow delete: if false;
+    }
+
+    // Settings collection
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isValidId(settingId);
+    }
+
+    // Commissions collection
+    match /commissions/{commissionId} {
+      allow read: if true;
+      allow create: if isValidId(commissionId)
+                    && request.resource.data.uplineUserId is string
+                    && request.resource.data.amount is number;
+      allow update: if isValidId(commissionId);
+      allow delete: if false;
+    }
+  }
+}
